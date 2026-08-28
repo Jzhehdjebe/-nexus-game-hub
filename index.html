@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>NEXUS Launcher</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --text:#f4f4f6;
+    --text2:rgba(244,244,246,.56);
+    --text3:rgba(244,244,246,.34);
+    --danger:#e5484d;
+    --gold:#ffd75e;
+  }
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:'Segoe UI Variable Text','Segoe UI',system-ui,-apple-system,'Helvetica Neue',sans-serif;
+    background:radial-gradient(1400px 700px at 50% -200px,#101014,#08080a 70%);
+    color:var(--text);
+    user-select:none;
+  }
+  button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer;}
+  input{font-family:inherit;}
+  img{display:block;}
+  .hidden{display:none !important;}
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px;}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.25);}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  /* ── Ambient glow (tinted by focused cover) ── */
+  #ambient{position:fixed;top:-260px;right:-160px;width:1000px;height:680px;border-radius:50%;
+    filter:blur(130px);opacity:.17;background-color:#2c3040;
+    transition:background-color .9s ease;pointer-events:none;z-index:0;}
+
+  /* ── Titlebar ── */
+  #titlebar{position:fixed;top:0;left:0;right:0;height:56px;z-index:60;display:flex;align-items:center;
+    justify-content:space-between;padding:0 10px 0 12px;-webkit-app-region:drag;}
+  #titlebar button,#padPill{-webkit-app-region:no-drag;}
+  .tb-left,.tb-right{display:flex;align-items:center;gap:8px;}
+  .logo{font-size:15px;font-weight:800;letter-spacing:3.5px;margin-left:4px;}
+  .logo span{font-weight:600;letter-spacing:2.5px;color:var(--text2);margin-left:6px;font-size:12.5px;}
+  .icon-btn{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    color:var(--text2);transition:background .15s,color .15s;}
+  .icon-btn:hover{background:rgba(255,255,255,.08);color:#fff;}
+  .icon-btn svg{width:20px;height:20px;fill:currentColor;}
+  #padPill{display:flex;align-items:center;gap:9px;height:34px;padding:0 14px;border-radius:999px;
+    background:rgba(255,255,255,.06);color:var(--text2);font-size:12.5px;font-weight:600;letter-spacing:.4px;
+    margin-right:8px;transition:background .3s,color .3s;}
+  #padPill svg{width:18px;height:18px;fill:currentColor;opacity:.85;}
+  #padPill .dot{width:8px;height:8px;border-radius:50%;background:#5c5f6a;transition:.3s;}
+  #padPill.on{color:#e6efe9;background:rgba(61,214,140,.12);}
+  #padPill.on .dot{background:#3dd68c;box-shadow:0 0 10px rgba(61,214,140,.9);}
+  .win-btn{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    color:var(--text2);transition:.15s;}
+  .win-btn svg{width:18px;height:18px;fill:currentColor;}
+  .win-btn:hover{background:rgba(255,255,255,.09);color:#fff;}
+  .win-btn.close:hover{background:var(--danger);color:#fff;}
+
+  /* ── Sidebar drawer ── */
+  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .25s;z-index:70;}
+  #scrim.show{opacity:1;pointer-events:auto;}
+  #sidebar{position:fixed;top:0;bottom:0;left:0;width:308px;z-index:80;padding:14px 16px;
+    background:rgba(19,19,24,.95);backdrop-filter:blur(40px);border-right:1px solid rgba(255,255,255,.06);
+    transform:translateX(-105%);transition:transform .3s cubic-bezier(.3,.8,.3,1);
+    display:flex;flex-direction:column;gap:24px;}
+  #sidebar.open{transform:none;}
+  .sb-head{display:flex;align-items:center;justify-content:space-between;padding:8px 4px 0;}
+  .sb-group{display:flex;flex-direction:column;gap:4px;}
+  .sb-bottom{margin-top:auto;}
+  .sb-label{font-size:11px;font-weight:800;letter-spacing:2px;color:var(--text3);text-transform:uppercase;
+    padding:0 12px;margin-bottom:6px;}
+  .sb-item{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:14px;
+    font-size:15px;font-weight:600;color:var(--text2);transition:.15s;text-align:left;}
+  .sb-item svg{width:16px;height:16px;fill:currentColor;}
+  .sb-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+  .sb-item.active{background:#fff;color:#0a0a0c;}
+  .sb-item.active .sb-count{color:rgba(0,0,0,.5);}
+  .sb-item.sb-focus{box-shadow:0 0 0 2px #fff;background:rgba(255,255,255,.08);color:#fff;}
+  .sb-item.active.sb-focus{color:#0a0a0c;box-shadow:0 0 0 2px rgba(255,255,255,.65);}
+  .sb-count{font-size:13px;font-weight:800;color:var(--text3);}
+  .sb-add{justify-content:flex-start;gap:10px;}
+
+  /* ── Layout: header is FIXED, games scroll in their own region below it ── */
+  #main{position:fixed;top:56px;bottom:52px;left:0;right:0;display:flex;z-index:1;}
+  #content{flex:1;min-width:0;display:flex;flex-direction:column;padding:0 32px;position:relative;overflow:hidden;}
+
+  #toolbar{flex:none;display:flex;align-items:center;gap:14px;z-index:5;
+    margin:0 -32px;padding:24px 48px 20px;
+    background:rgba(9,9,11,.82);backdrop-filter:blur(16px);}
+  #sectionTitle{font-size:32px;font-weight:800;letter-spacing:-.6px;}
+  #sectionCount{font-size:13px;font-weight:700;color:var(--text3);margin-top:12px;}
+  .spacer{flex:1;}
+  #viewToggle{display:flex;background:rgba(255,255,255,.06);border-radius:999px;padding:4px;gap:2px;}
+  #viewToggle button{width:42px;height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;
+    color:var(--text2);transition:.15s;}
+  #viewToggle button svg{width:17px;height:17px;fill:currentColor;}
+  #viewToggle button.active{background:#fff;color:#111;}
+
+  /* 16px inner padding = breathing room so hovered/scaled tiles never get clipped */
+  #scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 16px 40px;}
+
+  /* ── Grid view: 4 per row, 3 when detail panel open (5/4 on huge screens) ── */
+  #grid{display:grid;grid-template-columns:repeat(4,1fr);gap:30px 22px;padding:4px 2px 20px;}
+  #main.panel-open #grid{grid-template-columns:repeat(3,1fr);}
+  @media (min-width:2300px){
+    #grid{grid-template-columns:repeat(5,1fr);}
+    #main.panel-open #grid{grid-template-columns:repeat(4,1fr);}
+  }
+  /* scroll-margin-top: when the controller/scroll brings a tile back into view,
+     leave 18px of headroom above it so the hover-scale never clips at the top */
+  .tile{cursor:pointer;outline:none;scroll-margin-top:18px;scroll-margin-bottom:18px;}
+  .cover{aspect-ratio:3/4;border-radius:20px;overflow:hidden;position:relative;cursor:pointer;
+    background:linear-gradient(150deg,#1b1b21,#0e0e12);box-shadow:0 10px 26px rgba(0,0,0,.4);
+    transition:transform .18s ease,box-shadow .18s ease;}
+  .cover img{width:100%;height:100%;object-fit:cover;}
+  .noimg{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:72px;
+    color:rgba(255,255,255,.85);background:linear-gradient(150deg,#23232b,#121216);}
+  .noimg span{font-weight:800;opacity:.55;}
+  .tile.focused .cover{transform:scale(1.05);box-shadow:0 0 0 3px #fff,0 18px 44px rgba(0,0,0,.55);}
+  .tile:active .cover{transform:scale(1.0);}
+  .tile-title{margin-top:10px;font-size:15px;font-weight:700;color:var(--text2);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .15s;}
+  .tile.focused .tile-title{color:#fff;}
+  .fav-badge{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:999px;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;}
+  .fav-badge svg{width:15px;height:15px;fill:var(--gold);}
+
+  /* ── List view ── */
+  #grid.list{display:flex;flex-direction:column;gap:8px;}
+  .row{display:flex;align-items:center;gap:16px;padding:10px 16px;border-radius:16px;cursor:pointer;
+    background:rgba(255,255,255,.035);transition:background .15s,box-shadow .15s;
+    scroll-margin-top:18px;scroll-margin-bottom:18px;}
+  .row:hover{background:rgba(255,255,255,.06);}
+  .row.focused{background:rgba(255,255,255,.09);box-shadow:0 0 0 2px #fff;}
+  .thumb{width:54px;height:54px;border-radius:12px;overflow:hidden;flex:none;background:#1a1a20;}
+  .thumb img{width:100%;height:100%;object-fit:cover;}
+  .thumb .noimg{font-size:22px;background:linear-gradient(150deg,#23232b,#141419);}
+  .row-title{font-weight:700;font-size:16px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row-genre{font-size:13px;color:var(--text3);font-weight:600;}
+  .row-fav svg{width:16px;height:16px;fill:var(--gold);}
+
+  /* ── Empty state ── */
+  #empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    min-height:62vh;gap:8px;}
+  .empty-icon{color:rgba(244,244,246,.85);margin-bottom:8px;}
+  .empty-icon svg{width:72px;height:72px;fill:currentColor;}
+  #empty h2{font-size:22px;font-weight:800;}
+  #empty p{color:var(--text3);font-size:14.5px;margin-bottom:12px;}
+  #emptyAdd{display:flex;align-items:center;gap:9px;height:44px;padding:0 22px;border-radius:999px;background:#fff;
+    color:#0a0a0c;font-size:14.5px;font-weight:800;transition:transform .15s;}
+  #emptyAdd svg{width:16px;height:16px;fill:currentColor;}
+  #emptyAdd:hover{transform:scale(1.04);}
+
+  /* ── Detail panel ── */
+  #detail{flex:none;width:0;opacity:0;overflow:hidden;transition:width .25s ease,opacity .2s ease;}
+  #detail.open{width:324px;opacity:1;}
+  #detailInner{width:324px;height:100%;overflow-y:auto;padding:12px 40px 24px 16px;}
+  #dpCover{aspect-ratio:3/4;border-radius:20px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.45);
+    background:linear-gradient(150deg,#1c1c22,#101014);}
+  #dpCover img{width:100%;height:100%;object-fit:cover;}
+  #dpCover .noimg{font-size:84px;}
+  #dpTitle{font-size:21px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;line-height:1.25;}
+  #dpMeta{display:flex;flex-wrap:wrap;gap:6px;min-height:26px;}
+  .gpill{font-size:11px;font-weight:800;letter-spacing:.6px;padding:5px 11px;border-radius:999px;
+    background:rgba(255,255,255,.08);color:var(--text2);text-transform:uppercase;}
+  #dpLaunch{width:100%;height:50px;margin-top:14px;border-radius:999px;background:#fff;color:#0a0a0c;
+    font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:transform .15s;box-shadow:0 8px 22px rgba(0,0,0,.4);}
+  #dpLaunch svg{width:17px;height:17px;fill:currentColor;}
+  #dpLaunch:hover{transform:scale(1.03);}
+  #dpActions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
+  #dpActions .sq{height:46px;border-radius:14px;background:rgba(255,255,255,.07);display:flex;align-items:center;
+    justify-content:center;color:var(--text2);transition:.15s;}
+  #dpActions .sq svg{width:19px;height:19px;fill:currentColor;}
+  #dpActions .sq:hover{background:rgba(255,255,255,.14);color:#fff;}
+  #dpActions .sq.active{background:rgba(255,215,94,.14);color:var(--gold);}
+  #dpActions .sq.danger:hover{background:rgba(229,72,77,.16);color:#ff8589;}
+
+  /* ── Helpbar ── */
+  #helpbar{position:fixed;bottom:0;left:0;right:0;height:52px;z-index:60;display:flex;align-items:center;gap:20px;
+    padding:0 26px;background:rgba(10,10,13,.72);backdrop-filter:blur(24px);border-top:1px solid rgba(255,255,255,.05);}
+  .chip{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;color:var(--text3);
+    letter-spacing:.5px;white-space:nowrap;text-transform:uppercase;}
+  .key{display:flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 8px;
+    border-radius:8px;background:rgba(255,255,255,.09);color:var(--text);font-size:10px;font-weight:800;
+    letter-spacing:.5px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.35);}
+
+  /* ── Modal ── */
+  #modalWrap,#confirmWrap{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.6);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .2s;}
+  #confirmWrap{z-index:210;}
+  #modalWrap.show,#confirmWrap.show{opacity:1;pointer-events:auto;}
+  #modal{width:520px;max-height:88vh;overflow-y:auto;background:#17171c;border-radius:24px;padding:28px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);transform:scale(.96) translateY(10px);transition:transform .22s;}
+  #confirmBox{width:400px;background:#17171c;border-radius:22px;padding:26px;box-shadow:0 30px 80px rgba(0,0,0,.6);
+    transform:scale(.94);transition:transform .2s;}
+  #modalWrap.show #modal,#confirmWrap.show #confirmBox{transform:none;}
+  #modal h2{font-size:22px;font-weight:800;margin-bottom:20px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:11.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;
+    color:var(--text2);margin-bottom:8px;}
+  .field input[type=text]{width:100%;height:46px;background:#0f0f13;border:1.5px solid rgba(255,255,255,.09);
+    border-radius:13px;color:#fff;font-size:14.5px;padding:0 14px;outline:none;transition:border-color .15s,box-shadow .15s;}
+  .field input[type=text]:focus{border-color:rgba(255,255,255,.45);box-shadow:0 0 0 3px rgba(255,255,255,.07);}
+  .field input.error{border-color:var(--danger);box-shadow:0 0 0 3px rgba(229,72,77,.15);}
+  .hint{font-size:12px;color:var(--text3);margin-top:7px;}
+  .path-row{display:flex;gap:8px;}
+  .path-row input{flex:1;}
+  .pill-ghost{height:46px;padding:0 18px;border-radius:999px;background:rgba(255,255,255,.08);
+    font-weight:700;font-size:13.5px;color:var(--text);transition:.15s;white-space:nowrap;}
+  .pill-ghost:hover{background:rgba(255,255,255,.15);}
+  .field-row{display:flex;gap:14px;}
+  .field-row .grow{flex:1;}
+  #fImagePick{height:96px;border-radius:14px;border:1.5px dashed rgba(255,255,255,.18);background:#0f0f13;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;position:relative;
+    transition:border-color .15s;}
+  #fImagePick:hover{border-color:rgba(255,255,255,.4);}
+  #fImagePick img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  #fImageText{font-size:12.5px;color:var(--text3);}
+  .linklike{display:inline-block;font-size:12px;color:var(--text3);text-decoration:underline;margin-top:6px;}
+  .linklike:hover{color:#fff;}
+  #fIcon{width:86px !important;text-align:center;font-size:20px !important;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+  .pill-solid{height:48px;padding:0 26px;border-radius:999px;background:#fff;color:#0a0a0c;font-weight:800;
+    font-size:14.5px;transition:transform .15s;}
+  .pill-solid:hover{transform:scale(1.03);}
+  .pill-danger{height:48px;padding:0 26px;border-radius:999px;background:var(--danger);color:#fff;
+    font-weight:800;font-size:14.5px;transition:.15s;}
+  .pill-danger:hover{background:#f2555a;}
+  #confirmText{font-size:17px;font-weight:700;line-height:1.45;}
+
+  /* ── Toast ── */
+  #toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(16px);background:#f4f4f6;
+    color:#111;font-size:13.5px;font-weight:700;padding:12px 22px;border-radius:999px;opacity:0;
+    pointer-events:none;transition:.25s;z-index:300;box-shadow:0 12px 30px rgba(0,0,0,.5);max-width:70vw;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div id="ambient"></div>
+
+<header id="titlebar">
+  <div class="tb-left">
+    <button id="menuBtn" class="icon-btn" title="Menu (M)">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16v2H4zm0 4h16v2H4zm0 4h16v2H4z"/></svg>
+    </button>
+    <div class="logo">NEXUS<span>GAME HUB</span></div>
+  </div>
+  <div class="tb-right">
+    <div id="padPill">
+      <span class="dot"></span>
+      <svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round" d="M8.1 6.9h7.8c3.1 0 5.8 2.3 6.3 5.4l1 6.1c.3 1.9-1.2 3.7-3.2 3.7-1.3 0-2.5-.8-3.1-1.9l-1.4-2.9H8.5l-1.4 2.9c-.6 1.1-1.8 1.9-3.1 1.9-2 0-3.5-1.8-3.2-3.7l1-6.1c.5-3.1 3.2-5.4 6.3-5.4z"/><rect x="6.8" y="9.7" width="2.5" height="6.2" rx="1.25"/><rect x="4.95" y="11.55" width="6.2" height="2.5" rx="1.25"/><circle cx="16.1" cy="10.3" r="1.35"/><circle cx="16.1" cy="15.3" r="1.35"/><circle cx="13.6" cy="12.8" r="1.35"/><circle cx="18.6" cy="12.8" r="1.35"/></svg>
+      <span id="padText">No Controller</span>
+    </div>
+    <button id="minBtn" class="win-btn" title="Minimize">
+      <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="2" rx="1"/></svg>
+    </button>
+    <button id="closeBtn" class="win-btn close" title="Close">
+      <svg viewBox="0 0 24 24"><path d="M6.2 4.8 12 10.6l5.8-5.8 1.4 1.4L13.4 12l5.8 5.8-1.4 1.4L12 13.4l-5.8 5.8-1.4-1.4L10.6 12 4.8 6.2z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div id="scrim"></div>
+<aside id="sidebar">
+  <div class="sb-head">
+    <div class="logo">NEXUS</div>
+    <button id="sbClose" class="icon-btn" title="Close menu">
+      <svg viewBox="0 0 24 24"><path d="M14.7 5.3 8 12l6.7 6.7 1.4-1.4L10.8 12l5.3-5.3z"/></svg>
+    </button>
+  </div>
+  <div class="sb-group">
+    <div class="sb-label">Library</div>
+    <button class="sb-item" data-tab="all"><span>All Games</span><span class="sb-count" id="countAll">0</span></button>
+    <button class="sb-item" data-tab="fav"><span>Favorites</span><span class="sb-count" id="countFav">0</span></button>
+  </div>
+  <div class="sb-group">
+    <div class="sb-label">Sort By</div>
+    <button class="sb-item" data-sort="name"><span>Name</span></button>
+    <button class="sb-item" data-sort="last"><span>Last Played</span></button>
+  </div>
+  <div class="sb-group sb-bottom">
+    <button class="sb-item sb-add" id="sbAdd">
+      <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+      <span>Add Game</span>
+    </button>
+  </div>
+</aside>
+
+<main id="main">
+  <section id="content">
+    <div id="toolbar">
+      <h1 id="sectionTitle">All Games</h1>
+      <span id="sectionCount"></span>
+      <div class="spacer"></div>
+      <div id="viewToggle">
+        <button id="viewGrid" title="Grid view">
+          <svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
+        </button>
+        <button id="viewList" title="List view">
+          <svg viewBox="0 0 24 24"><circle cx="5" cy="6" r="1.7"/><rect x="9" y="5" width="11" height="2" rx="1"/><circle cx="5" cy="12" r="1.7"/><rect x="9" y="11" width="11" height="2" rx="1"/><circle cx="5" cy="18" r="1.7"/><rect x="9" y="17" width="11" height="2" rx="1"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="scroll">
+      <div id="grid"></div>
+      <div id="empty" class="hidden">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round" d="M8.1 6.9h7.8c3.1 0 5.8 2.3 6.3 5.4l1 6.1c.3 1.9-1.2 3.7-3.2 3.7-1.3 0-2.5-.8-3.1-1.9l-1.4-2.9H8.5l-1.4 2.9c-.6 1.1-1.8 1.9-3.1 1.9-2 0-3.5-1.8-3.2-3.7l1-6.1c.5-3.1 3.2-5.4 6.3-5.4z"/><rect x="6.8" y="9.7" width="2.5" height="6.2" rx="1.25"/><rect x="4.95" y="11.55" width="6.2" height="2.5" rx="1.25"/><circle cx="16.1" cy="10.3" r="1.35"/><circle cx="16.1" cy="15.3" r="1.35"/><circle cx="13.6" cy="12.8" r="1.35"/><circle cx="18.6" cy="12.8" r="1.35"/></svg>
+        </div>
+        <h2 id="emptyTitle">Your library is empty</h2>
+        <p id="emptyText">Add your first game to get started.</p>
+        <button id="emptyAdd">
+          <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+          Add Game
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <aside id="detail">
+    <div id="detailInner">
+      <div id="dpCover"></div>
+      <h2 id="dpTitle"></h2>
+      <div id="dpMeta"></div>
+      <button id="dpLaunch">
+        <svg viewBox="0 0 24 24"><path d="M8 5.6v12.8c0 .8.9 1.3 1.6.9l10-6.4c.6-.4.6-1.4 0-1.8l-10-6.4c-.7-.4-1.6.1-1.6.9z"/></svg>
+        <span>Launch</span>
+      </button>
+      <div id="dpActions">
+        <button id="dpFav" class="sq" title="Toggle favorite (X)">
+          <svg viewBox="0 0 24 24"><path d="M12 2.8l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.6l6.5-.9z"/></svg>
+        </button>
+        <button id="dpImg" class="sq" title="Change cover image">
+          <svg viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm-.5 13.5 3.2-3.2 2.6 2.6 4.2-4.2 2.5 2.5V19h-12.5zM8.5 7A1.5 1.5 0 1 0 10 8.5 1.5 1.5 0 0 0 8.5 7z"/></svg>
+        </button>
+        <button id="dpEdit" class="sq" title="Edit game">
+          <svg viewBox="0 0 24 24"><path d="M4.9 19.1l1-4.2L17.2 3.6a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L9.1 18.1l-4.2 1zm3-4.6l1.6 1.6 9.6-9.6-1.6-1.6z"/></svg>
+        </button>
+        <button id="dpDel" class="sq danger" title="Remove game">
+          <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h5v2H3V5h5l1-2zM6 9h12l-.9 12.1a2 2 0 0 1-2 1.9H8.9a2 2 0 0 1-2-1.9L6 9z"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer id="helpbar"></footer>
+
+<!-- Add / Edit modal -->
+<div id="modalWrap">
+  <div id="modal">
+    <h2 id="modalTitle">Add Game</h2>
+    <div class="field">
+      <label>Game Title *</label>
+      <input id="fTitle" type="text" placeholder="e.g. Hollow Knight" maxlength="80" autocomplete="off" spellcheck="false"/>
+    </div>
+    <div class="field">
+      <label>Executable / Shortcut Path *</label>
+      <div class="path-row">
+        <input id="fPath" type="text" placeholder="C:\Games\game.exe  or  steam://…" autocomplete="off" spellcheck="false"/>
+        <button id="fBrowse" class="pill-ghost">Browse…</button>
+      </div>
+      <p class="hint">Supports .exe, .lnk, .url, .bat — desktop shortcuts and store links work too.</p>
+    </div>
+    <div class="field-row">
+      <div class="field grow">
+        <label>Cover Image</label>
+        <div id="fImagePick">
+          <img id="fImagePrev" class="hidden" alt=""/>
+          <span id="fImageText">Click to choose an image…</span>
+        </div>
+        <button id="fImageClear" class="linklike hidden">Remove image</button>
+      </div>
+      <div class="field">
+        <label>Emoji Icon</label>
+        <input id="fIcon" type="text" placeholder="🎮" maxlength="4"/>
+        <p class="hint">Shown when there's no cover</p>
+      </div>
+    </div>
+    <div class="field">
+      <label>Genre Tags (comma separated)</label>
+      <input id="fGenre" type="text" placeholder="Action, Indie" autocomplete="off" spellcheck="false"/>
+    </div>
+    <div class="modal-actions">
+      <button id="mCancel" class="pill-ghost">Cancel</button>
+      <button id="mSave" class="pill-solid">Add to Library</button>
+    </div>
+  </div>
+</div>
+
+<!-- Remove confirm -->
+<div id="confirmWrap">
+  <div id="confirmBox">
+    <h3 id="confirmText">Remove this game?</h3>
+    <div class="modal-actions">
+      <button id="cCancel" class="pill-ghost">Cancel</button>
+      <button id="cOk" class="pill-danger">Remove</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ── state ─────────────────────────────────────────────────────── */
+let library     = { games: [], nextId: 1 };
+let prefs       = { view: 'grid', tab: 'all', sort: 'name' };
+let currentList = [];
+let focusedId   = null;
+let panelOpen   = false;
+let editingId   = null;
+let modalImage  = '';
+let modalOpen = false, confirmOpen = false, sidebarOpen = false, padConnected = false;
+let padType = 'xbox';
+let pendingRemoveId = null;
+let sbFocus = 0;
+const gridEl = $('#grid');
+
+const SVG_STAR = '<svg viewBox="0 0 24 24"><path d="M12 2.8l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.6l6.5-.9z"/></svg>';
+
+/* ── persistence ─────────────────────────────────────────────── */
+async function loadAll(){
+  try { prefs = Object.assign(prefs, JSON.parse(localStorage.getItem('nexus-prefs') || '{}')); } catch {}
+  try { library = (await window.nexus.loadLibrary()) || { games: [], nextId: 1 }; } catch {}
+  if (!Array.isArray(library.games)) library.games = [];
+  if (!library.nextId) library.nextId = library.games.reduce((m,g)=>Math.max(m,g.id||0),0) + 1;
+}
+function persist(){ window.nexus.saveLibrary(library); }
+function savePrefs(){ localStorage.setItem('nexus-prefs', JSON.stringify(prefs)); }
+
+/* ── helpers ───────────────────────────────────────────────────── */
+function toFileURL(p){
+  if(!p) return '';
+  if(/^[a-z][a-z0-9+.-]*:\/\//i.test(p)) return p;
+  return 'file:///' + encodeURI(p.replace(/\\/g,'/').replace(/^\/+/,''));
+}
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function visibleGames(){
+  let list = library.games.filter(g => prefs.tab === 'all' || g.favorite);
+  if (prefs.sort === 'name') list.sort((a,b) => a.title.localeCompare(b.title, undefined, {sensitivity:'base'}));
+  else list.sort((a,b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+  return list;
+}
+function coverHTML(g){
+  if (g.image) return `<img src="${toFileURL(g.image)}" alt="" draggable="false"/>`;
+  const ch = (g.title || '?').trim().charAt(0).toUpperCase();
+  return `<div class="noimg">${g.icon ? esc(g.icon) : '<span>'+esc(ch)+'</span>'}</div>`;
+}
+function genres(g){ return String(g.genre||'').split(',').map(s=>s.trim()).filter(Boolean); }
+function focusedGame(){ return library.games.find(g => g.id === focusedId) || null; }
+
+/* ── render ────────────────────────────────────────────────────── */
+function renderGrid(){
+  currentList = visibleGames();
+  gridEl.innerHTML = '';
+  gridEl.classList.toggle('list', prefs.view === 'list');
+  $('#empty').classList.toggle('hidden', currentList.length > 0);
+
+  if (prefs.tab === 'fav'){
+    $('#emptyTitle').textContent = 'No favorites yet';
+    $('#emptyText').textContent  = 'Mark a game as favorite and it will show up here.';
+  } else {
+    $('#emptyTitle').textContent = 'Your library is empty';
+    $('#emptyText').textContent  = 'Add your first game to get started.';
+  }
+
+  $('#sectionTitle').textContent = prefs.tab === 'fav' ? 'Favorites' : 'All Games';
+  $('#sectionCount').textContent = currentList.length
+    ? currentList.length + (currentList.length === 1 ? ' GAME' : ' GAMES') : '';
+  $('#countAll').textContent = library.games.length;
+  $('#countFav').textContent = library.games.filter(g=>g.favorite).length;
+
+  $$('#sidebar [data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === prefs.tab));
+  $$('#sidebar [data-sort]').forEach(b => b.classList.toggle('active', b.dataset.sort === prefs.sort));
+  $('#viewGrid').classList.toggle('active', prefs.view === 'grid');
+  $('#viewList').classList.toggle('active', prefs.view === 'list');
+
+  currentList.forEach((g,i) => {
+    const el = document.createElement('div');
+    el.className = (prefs.view === 'grid' ? 'tile' : 'row') + ' game-item';
+    el.dataset.index = i;
+    if (prefs.view === 'grid'){
+      el.innerHTML = `
+        <div class="cover">${coverHTML(g)}
+          <div class="fav-badge ${g.favorite ? '' : 'hidden'}">${SVG_STAR}</div>
+        </div>
+        <div class="tile-title">${esc(g.title)}</div>`;
+    } else {
+      el.innerHTML = `
+        <div class="thumb">${coverHTML(g)}</div>
+        <div class="row-title">${esc(g.title)}</div>
+        <div class="row-genre">${esc(genres(g)[0] || '')}</div>
+        <div class="row-fav ${g.favorite ? '' : 'hidden'}">${SVG_STAR}</div>`;
+    }
+    el.addEventListener('mouseenter', () => setFocus(i, false));
+    el.addEventListener('click', () => {
+      setFocus(i, false);
+      if (!panelOpen) openPanel();
+    });
+    el.addEventListener('dblclick', () => launch(currentList[i]));
+    gridEl.appendChild(el);
+  });
+
+  let idx = currentList.findIndex(g => g.id === focusedId);
+  if (idx < 0 && currentList.length) idx = 0;
+  setFocus(currentList.length ? idx : -1, false);
+}
+
+function setFocus(i, scroll = true){
+  const items = gridEl.children;
+  for (const el of items) el.classList.remove('focused');
+  if (i >= 0 && items[i]){
+    items[i].classList.add('focused');
+    focusedId = currentList[i].id;
+    if (scroll) items[i].scrollIntoView({ block:'nearest', behavior:'smooth' });
+  } else {
+    focusedId = null;
+  }
+  updateDetail();
+}
+
+/* ── detail panel (opens on A / click, not on hover) ───────────── */
+function openPanel(){ if (!focusedGame()) return; panelOpen = true; updateDetail(); }
+function closePanel(){ panelOpen = false; updateDetail(); }
+
+function updateDetail(){
+  const g = focusedGame();
+  const panel = $('#detail');
+  if (!panelOpen || !g){
+    panel.classList.remove('open');
+    $('#main').classList.remove('panel-open');
+  } else {
+    panel.classList.add('open');
+    $('#main').classList.add('panel-open');
+    $('#dpCover').innerHTML = coverHTML(g);
+    $('#dpTitle').textContent = g.title;
+    $('#dpMeta').innerHTML = genres(g).slice(0,3).map(x => `<span class="gpill">${esc(x)}</span>`).join('');
+    $('#dpFav').classList.toggle('active', !!g.favorite);
+    $('#dpLaunch').onclick = () => launch(g);
+    $('#dpFav').onclick    = () => toggleFav(g);
+    $('#dpEdit').onclick   = () => openModal(g);
+    $('#dpImg').onclick    = () => changeImage(g);
+    $('#dpDel').onclick    = () => askRemove(g);
+  }
+  updateAmbient(g);
+}
+
+/* ── ambient glow from cover ───────────────────────────────────── */
+let ambientToken = 0;
+function updateAmbient(g){
+  const blob = $('#ambient');
+  const token = ++ambientToken;
+  if (!g || !g.image){ blob.style.backgroundColor = '#2c3040'; return; }
+  const img = new Image();
+  img.onload = () => {
+    if (token !== ambientToken) return;
+    try {
+      const c = document.createElement('canvas'); c.width = 16; c.height = 16;
+      const ctx = c.getContext('2d', { willReadFrequently:true });
+      ctx.drawImage(img, 0, 0, 16, 16);
+      const d = ctx.getImageData(0, 0, 16, 16).data;
+      let r=0, gc=0, b=0;
+      for (let i=0; i<d.length; i+=4){ r+=d[i]; gc+=d[i+1]; b+=d[i+2]; }
+      const n = d.length/4;
+      r  = Math.min(255, (r /n)*1.35 + 12) | 0;
+      gc = Math.min(255, (gc/n)*1.35 + 12) | 0;
+      b  = Math.min(255, (b /n)*1.35 + 12) | 0;
+      blob.style.backgroundColor = `rgb(${r},${gc},${b})`;
+    } catch { blob.style.backgroundColor = '#2c3040'; }
+  };
+  img.onerror = () => { if (token === ambientToken) blob.style.backgroundColor = '#2c3040'; };
+  img.src = toFileURL(g.image);
+}
+
+/* ── actions ─────────────────────────────────────────────────── */
+async function launch(g){
+  if (!g) return;
+  g.lastPlayed = Date.now(); persist();
+  if (prefs.sort === 'last') renderGrid();
+  toast('Launching ' + g.title + '…');
+  try {
+    const res = await window.nexus.launchGame(g.path);
+    if (res && res.ok === false) toast('Could not launch: ' + (res.error || 'unknown error'));
+  } catch { toast('Could not launch game'); }
+}
+function toggleFav(g){ g.favorite = !g.favorite; persist(); renderGrid(); }
+async function changeImage(g){
+  const p = await window.nexus.browseImage();
+  if (p){ g.image = p; persist(); renderGrid(); toast('Cover updated'); }
+}
+function askRemove(g){
+  pendingRemoveId = g.id;
+  $('#confirmText').textContent = `Remove “${g.title}” from your library?`;
+  confirmOpen = true; $('#confirmWrap').classList.add('show');
+}
+function closeConfirm(){ confirmOpen = false; pendingRemoveId = null; $('#confirmWrap').classList.remove('show'); }
+function confirmYes(){
+  const i = library.games.findIndex(g => g.id === pendingRemoveId);
+  if (i >= 0){
+    const t = library.games[i].title;
+    if (focusedId === library.games[i].id) focusedId = null;
+    library.games.splice(i,1); persist(); renderGrid(); toast('Removed ' + t);
+  }
+  closeConfirm();
+}
+
+/* ── primary action: A / Enter ─────────────────────────────────── */
+function primaryAction(){
+  if (sidebarOpen){ activateSbItem(sbFocus); return; }
+  if (!panelOpen) openPanel();
+  else launch(focusedGame());
+}
+
+/* ── modal ────────────────────────────────────────────────────── */
+function openModal(g = null){
+  editingId = g ? g.id : null;
+  $('#modalTitle').textContent = g ? 'Edit Game' : 'Add Game';
+  $('#mSave').textContent      = g ? 'Save Changes' : 'Add to Library';
+  $('#fTitle').value = g ? g.title : '';
+  $('#fPath').value  = g ? g.path  : '';
+  $('#fIcon').value  = g ? (g.icon || '')  : '';
+  $('#fGenre').value = g ? (g.genre || '') : '';
+  setModalImage(g ? (g.image || '') : '');
+  $('#fTitle').classList.remove('error'); $('#fPath').classList.remove('error');
+  modalOpen = true; $('#modalWrap').classList.add('show');
+  setTimeout(() => $('#fTitle').focus(), 140);
+}
+function closeModal(){ modalOpen = false; editingId = null; $('#modalWrap').classList.remove('show'); }
+function setModalImage(p){
+  modalImage = p || '';
+  $('#fImagePrev').classList.toggle('hidden', !p);
+  if (p) $('#fImagePrev').src = toFileURL(p);
+  $('#fImageText').textContent = p ? '' : 'Click to choose an image…';
+  $('#fImageClear').classList.toggle('hidden', !p);
+}
+function saveModal(){
+  const wasEdit = editingId != null;
+  const title = $('#fTitle').value.trim();
+  const path  = $('#fPath').value.trim();
+  $('#fTitle').classList.toggle('error', !title);
+  $('#fPath').classList.toggle('error', !path);
+  if (!title || !path) return;
+  const genre = $('#fGenre').value.trim();
+  const icon  = $('#fIcon').value.trim();
+  if (wasEdit){
+    const g = library.games.find(x => x.id === editingId);
+    if (g) Object.assign(g, { title, path, image: modalImage, genre, icon });
+  } else {
+    const g = { id: library.nextId++, title, path, image: modalImage, genre, icon,
+                favorite: false, lastPlayed: null, addedAt: Date.now() };
+    library.games.push(g);
+    focusedId = g.id;
+    if (prefs.tab === 'fav'){ prefs.tab = 'all'; savePrefs(); }
+  }
+  persist(); closeModal(); renderGrid();
+  toast(wasEdit ? 'Changes saved' : 'Added to library');
+}
+
+/* ── sidebar ─────────────────────────────────────────────────── */
+function sbItems(){ return $$('#sidebar .sb-item'); }
+function renderSbFocus(){ sbItems().forEach((el,i) => el.classList.toggle('sb-focus', i === sbFocus)); }
+function sbNav(dir){
+  const items = sbItems(); if (!items.length) return;
+  if (dir === 'down') sbFocus = Math.min(sbFocus + 1, items.length - 1);
+  if (dir === 'up')   sbFocus = Math.max(sbFocus - 1, 0);
+  renderSbFocus();
+}
+function activateSbItem(i){ const el = sbItems()[i]; if (el) el.click(); }
+function openSidebar(){
+  sidebarOpen = true;
+  $('#sidebar').classList.add('open'); $('#scrim').classList.add('show');
+  const idx = sbItems().findIndex(el => el.dataset.tab === prefs.tab);
+  sbFocus = idx >= 0 ? idx : 0;
+  renderSbFocus();
+}
+function closeSidebar(){ sidebarOpen = false; $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('show'); }
+function toggleSidebar(){ sidebarOpen ? closeSidebar() : openSidebar(); }
+function switchTab(){
+  if (modalOpen || confirmOpen) return;
+  prefs.tab = prefs.tab === 'all' ? 'fav' : 'all';
+  savePrefs(); renderGrid();
+}
+function toggleView(){
+  if (modalOpen || confirmOpen || sidebarOpen) return;
+  prefs.view = prefs.view === 'grid' ? 'list' : 'grid';
+  savePrefs(); renderGrid();
+}
+
+/* ── navigation ──────────────────────────────────────────────── */
+function gridCols(){
+  const items = gridEl.children;
+  if (items.length < 2) return 1;
+  const top = items[0].offsetTop; let c = 0;
+  for (const it of items){ if (it.offsetTop === top) c++; else break; }
+  return c || 1;
+}
+function nav(dir){
+  if (modalOpen || confirmOpen || sidebarOpen || !currentList.length) return;
+  let idx = currentList.findIndex(g => g.id === focusedId);
+  if (idx < 0){ setFocus(0); return; }
+  const cols = gridCols();
+  let n = idx;
+  if (dir === 'left')  n = idx - 1;
+  if (dir === 'right') n = idx + 1;
+  if (dir === 'up')    n = idx - cols;
+  if (dir === 'down')  n = idx + cols;
+  if (n < 0 || n >= currentList.length) return;
+  setFocus(n);
+}
+function back(){
+  if (confirmOpen) closeConfirm();
+  else if (modalOpen) closeModal();
+  else if (sidebarOpen) closeSidebar();
+  else if (panelOpen) closePanel();
+  else setFocus(-1, false);
+}
+
+/* ── keyboard ────────────────────────────────────────────────── */
+window.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea';
+  if (e.key === 'Escape'){ e.preventDefault(); back(); return; }
+  if (typing){
+    if (modalOpen && e.key === 'Enter') saveModal();
+    return;
+  }
+  if (modalOpen || confirmOpen){
+    if (modalOpen && e.key === 'Enter' && tag !== 'button') saveModal();
+    return;
+  }
+  switch (e.key){
+    case 'ArrowUp':    e.preventDefault(); sidebarOpen ? sbNav('up')    : nav('up');    break;
+    case 'ArrowDown':  e.preventDefault(); sidebarOpen ? sbNav('down')  : nav('down');  break;
+    case 'ArrowLeft':  e.preventDefault(); nav('left');  break;
+    case 'ArrowRight': e.preventDefault(); nav('right'); break;
+    case 'Enter': case 'a': case 'A': sidebarOpen ? activateSbItem(sbFocus) : primaryAction(); break;
+    case 'b': case 'B': back(); break;
+    case 'y': case 'Y': toggleView(); break;
+    case 'v': case 'V': openModal(); break;
+    case 'x': case 'X': case 'f': case 'F': { const g = focusedGame(); if (g) toggleFav(g); break; }
+    case 'q': case 'Q': case 'e': case 'E': switchTab(); break;
+    case 'm': case 'M': toggleSidebar(); break;
+  }
+});
+
+/* ── gamepad ───────────────────────────────────────────────────── */
+const held = {};
+let prevButtons = [];
+function detectPadType(id){
+  const s = (id || '').toLowerCase();
+  if (/dualsense|dualshock|playstation|ps4|ps5|054c/.test(s)) return 'ps';
+  return 'xbox';
+}
+function padAction(i, repeat){
+  switch (i){
+    case 0:
+      if (repeat) break;
+      if (confirmOpen) confirmYes();
+      else if (modalOpen) saveModal();
+      else sidebarOpen ? activateSbItem(sbFocus) : primaryAction();
+      break;
+    case 1:  if (!repeat) back(); break;
+    case 2:  if (!repeat && !modalOpen && !confirmOpen && !sidebarOpen){ const g = focusedGame(); if (g) toggleFav(g); } break;
+    case 3:  if (!repeat) toggleView(); break;
+    case 4:  if (!repeat) switchTab(); break;
+    case 5:  if (!repeat) switchTab(); break;
+    case 8:  if (!repeat && !modalOpen && !confirmOpen) openModal(); break;
+    case 9:  if (!repeat && !modalOpen && !confirmOpen) toggleSidebar(); break;
+    case 12: sidebarOpen ? sbNav('up')    : nav('up');    break;
+    case 13: sidebarOpen ? sbNav('down')  : nav('down');  break;
+    case 14: if (!repeat && !sidebarOpen) nav('left');  break;
+    case 15: if (!repeat && !sidebarOpen) nav('right'); break;
+  }
+}
+function stickNav(ax, ay, now){
+  const dirs = { up: ay < -0.55, down: ay > 0.55, left: ax < -0.55, right: ax > 0.55 };
+  for (const d of ['up','down','left','right']){
+    const k = 's' + d;
+    if (dirs[d]){
+      const first = !held[k];
+      if (first || now >= (held[k] && held[k].next || 0)){
+        held[k] = { next: now + (first ? 380 : 130) };
+        if (d === 'up' || d === 'down') sidebarOpen ? sbNav(d) : nav(d);
+        else if (!sidebarOpen) nav(d);
+      }
+    } else held[k] = null;
+  }
+}
+function padLoop(){
+  let pad = null;
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads){ if (p && p.connected && p.buttons.length > 4){ pad = p; break; } }
+  const now = performance.now();
+  if (pad){
+    const t = detectPadType(pad.id);
+    if (t !== padType){ padType = t; renderHelp(); }
+    const pressed = pad.buttons.map(b => b.pressed);
+    for (let i = 0; i < pressed.length; i++){
+      if (pressed[i]){
+        if (!prevButtons[i]){ padAction(i, false); held[i] = { next: now + 380 }; }
+        else if (held[i] && now >= held[i].next){ padAction(i, true); held[i].next = now + 130; }
+      } else held[i] = null;
+    }
+    stickNav(pad.axes[0] || 0, pad.axes[1] || 0, now);
+    prevButtons = pressed;
+  } else {
+    prevButtons = [];
+  }
+  setPadConnected(!!pad);
+  requestAnimationFrame(padLoop);
+}
+function setPadConnected(on){
+  if (on === padConnected) return;
+  padConnected = on;
+  $('#padPill').classList.toggle('on', on);
+  $('#padText').textContent = on ? 'Controller' : 'No Controller';
+  renderHelp();
+}
+function renderHelp(){
+  let hints;
+  if (!padConnected){
+    hints = [['Arrows','Navigate'],['Q · E','Section'],['Enter','Select / Launch'],['Esc','Back'],['F','Favorite'],['Y','Grid / List'],['V','Add Game'],['M','Menu']];
+  } else if (padType === 'ps'){
+    hints = [['D-PAD','Navigate'],['L1 · R1','Section'],['✕','Select / Launch'],['○','Back'],['□','Favorite'],['△','Grid / List'],['Share','Add Game'],['Options','Menu']];
+  } else {
+    hints = [['D-PAD','Navigate'],['LB · RB','Section'],['A','Select / Launch'],['B','Back'],['X','Favorite'],['Y','Grid / List'],['View','Add Game'],['Start','Menu']];
+  }
+  $('#helpbar').innerHTML = hints.map(([k,t]) =>
+    `<div class="chip"><span class="key">${k}</span>${t}</div>`).join('');
+}
+
+/* ── toast ───────────────────────────────────────────────────── */
+let toastTimer = null;
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ── bind UI ───────────────────────────────────────────────────── */
+function bindUI(){
+  $('#menuBtn').addEventListener('click', toggleSidebar);
+  $('#sbClose').addEventListener('click', closeSidebar);
+  $('#scrim').addEventListener('click', closeSidebar);
+  $('#minBtn').addEventListener('click', () => window.nexus.minimize());
+  $('#closeBtn').addEventListener('click', () => window.nexus.close());
+
+  $$('#sidebar [data-tab]').forEach(b => b.addEventListener('click', () => {
+    prefs.tab = b.dataset.tab; savePrefs(); renderGrid();
+  }));
+  $$('#sidebar [data-sort]').forEach(b => b.addEventListener('click', () => {
+    prefs.sort = b.dataset.sort; savePrefs(); renderGrid();
+  }));
+  $('#sbAdd').addEventListener('click', () => openModal());
+
+  sbItems().forEach((el,i) => el.addEventListener('mouseenter', () => { sbFocus = i; renderSbFocus(); }));
+
+  $('#viewGrid').addEventListener('click', () => { prefs.view = 'grid'; savePrefs(); renderGrid(); });
+  $('#viewList').addEventListener('click', () => { prefs.view = 'list'; savePrefs(); renderGrid(); });
+
+  $('#emptyAdd').addEventListener('click', () => openModal());
+
+  $('#fBrowse').addEventListener('click', async () => {
+    const p = await window.nexus.browseExe();
+    if (p) $('#fPath').value = p;
+  });
+  $('#fImagePick').addEventListener('click', async () => {
+    const p = await window.nexus.browseImage();
+    if (p) setModalImage(p);
+  });
+  $('#fImageClear').addEventListener('click', () => setModalImage(''));
+  $('#mCancel').addEventListener('click', closeModal);
+  $('#mSave').addEventListener('click', saveModal);
+  $('#modalWrap').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+  $('#cCancel').addEventListener('click', closeConfirm);
+  $('#cOk').addEventListener('click', confirmYes);
+  $('#confirmWrap').addEventListener('click', e => { if (e.target === e.currentTarget) closeConfirm(); });
+}
+
+/* ── init ────────────────────────────────────────────────────── */
+(async function init(){
+  renderHelp();
+  bindUI();
+  await loadAll();
+  renderGrid();
+  requestAnimationFrame(padLoop);
+})();
+</script>
+</body>
+</html>

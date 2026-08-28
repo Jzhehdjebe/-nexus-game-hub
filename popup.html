@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>NEXUS</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:'Segoe UI Variable Text','Segoe UI',system-ui,-apple-system,'Helvetica Neue',sans-serif;
+    background:transparent;
+    color:#f4f4f6;
+    user-select:none;
+    padding:18px;
+  }
+  button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer;outline:none;}
+  svg{fill:currentColor;}
+
+  /* no outer shadow here — it gets clipped by the window edge and shows as a rectangle */
+  #card{
+    position:relative;width:100%;height:100%;border-radius:26px;overflow:hidden;
+    background:
+      radial-gradient(620px 300px at 50% -120px, rgba(255,255,255,.07), transparent 70%),
+      #16161c;
+    border:1px solid rgba(255,255,255,.08);
+    display:flex;flex-direction:column;
+    -webkit-app-region:drag;
+    animation:pop .28s ease-out;
+  }
+  @keyframes pop{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:none;}}
+
+  #topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;}
+  .logo{font-size:13px;font-weight:800;letter-spacing:3px;}
+  .logo span{color:rgba(244,244,246,.42);font-weight:600;letter-spacing:2px;margin-left:6px;font-size:10.5px;}
+  #countdown{display:flex;align-items:center;gap:8px;height:28px;padding:0 13px;border-radius:999px;
+    background:rgba(255,255,255,.07);font-size:10px;font-weight:800;letter-spacing:1px;
+    color:rgba(244,244,246,.5);}
+  #countdown .dot{width:7px;height:7px;border-radius:50%;background:#ffd75e;animation:pulse 1.6s ease-in-out infinite;}
+  #countdown b{color:#f4f4f6;font-size:12px;letter-spacing:.5px;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+  #hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;gap:9px;padding:0 36px;}
+  #icon{width:64px;height:64px;border-radius:22px;background:rgba(255,255,255,.07);
+    display:flex;align-items:center;justify-content:center;margin-bottom:8px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);color:#fff;}
+  #icon svg{width:34px;height:34px;}
+  h1{font-size:25px;font-weight:800;letter-spacing:-.4px;}
+  #hero p{font-size:13.5px;font-weight:500;color:rgba(244,244,246,.5);line-height:1.4;}
+  #hero p.err{color:#ff8589;font-size:12px;font-weight:700;word-break:break-word;}
+
+  #actions{display:flex;gap:10px;justify-content:center;padding:0 34px;-webkit-app-region:no-drag;}
+  .choice{display:flex;align-items:center;justify-content:center;gap:9px;height:48px;padding:0 28px;
+    border-radius:999px;font-size:14.5px;font-weight:800;
+    transition:transform .16s ease,background .16s ease,color .16s ease,box-shadow .16s ease,opacity .16s;}
+  .choice svg{width:15px;height:15px;}
+  .choice.sel{background:#fff;color:#0a0a0c;transform:scale(1.045);box-shadow:0 10px 26px rgba(0,0,0,.45);}
+  .choice:not(.sel){background:rgba(255,255,255,.08);color:#f4f4f6;}
+  .choice:not(.sel):hover{background:rgba(255,255,255,.14);}
+
+  #hints{display:flex;align-items:center;justify-content:center;gap:18px;padding:16px 0 15px;}
+  .chip{display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:800;letter-spacing:.8px;
+    color:rgba(244,244,246,.35);text-transform:uppercase;}
+  .key{display:flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 8px;
+    border-radius:7px;background:rgba(255,255,255,.09);color:#f4f4f6;font-size:9.5px;font-weight:800;
+    letter-spacing:.5px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.35);}
+
+  #bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:rgba(255,255,255,.35);
+    transform-origin:left;animation:drain 15s linear forwards;}
+  @keyframes drain{from{transform:scaleX(1);}to{transform:scaleX(0);}}
+</style>
+</head>
+<body>
+<div id="card">
+  <div id="topbar">
+    <div class="logo">NEXUS<span>GAME HUB</span></div>
+    <div id="countdown"><span class="dot"></span>AUTO-CLOSES IN&nbsp;<b id="secs">15S</b></div>
+  </div>
+
+  <div id="hero">
+    <div id="icon">
+      <svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round" d="M8.1 6.9h7.8c3.1 0 5.8 2.3 6.3 5.4l1 6.1c.3 1.9-1.2 3.7-3.2 3.7-1.3 0-2.5-.8-3.1-1.9l-1.4-2.9H8.5l-1.4 2.9c-.6 1.1-1.8 1.9-3.1 1.9-2 0-3.5-1.8-3.2-3.7l1-6.1c.5-3.1 3.2-5.4 6.3-5.4z"/><rect x="6.8" y="9.7" width="2.5" height="6.2" rx="1.25"/><rect x="4.95" y="11.55" width="6.2" height="2.5" rx="1.25"/><circle cx="16.1" cy="10.3" r="1.35"/><circle cx="16.1" cy="15.3" r="1.35"/><circle cx="13.6" cy="12.8" r="1.35"/><circle cx="18.6" cy="12.8" r="1.35"/></svg>
+    </div>
+    <h1>Launch NEXUS?</h1>
+    <p id="sub">Open your Game Hub and jump straight into your library.</p>
+  </div>
+
+  <div id="actions">
+    <button id="btnYes" class="choice sel">
+      <svg viewBox="0 0 24 24"><path d="M8 5.6v12.8c0 .8.9 1.3 1.6.9l10-6.4c.6-.4.6-1.4 0-1.8l-10-6.4c-.7-.4-1.6.1-1.6.9z"/></svg>
+      <span>Yes, Launch</span>
+    </button>
+    <button id="btnNo" class="choice">
+      <svg viewBox="0 0 24 24"><path d="M6.2 4.8 12 10.6l5.8-5.8 1.4 1.4L13.4 12l5.8 5.8-1.4 1.4L12 13.4l-5.8 5.8-1.4-1.4L10.6 12 4.8 6.2z"/></svg>
+      <span>No Thanks</span>
+    </button>
+  </div>
+
+  <div id="hints"></div>
+  <div id="bar"></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const yes = $('#btnYes'), no = $('#btnNo');
+const choices = [yes, no];
+let sel = 0, done = false;
+
+function setSel(i){ sel = i; choices.forEach((b,j) => b.classList.toggle('sel', j === i)); }
+
+async function launch(){
+  if (done) return;
+  done = true;
+  yes.style.opacity = .6;
+  const res = await window.popup.openNexus();
+  if (res && res.ok === false){
+    // show the failure on the card instead of dying silently
+    done = false;
+    yes.style.opacity = '';
+    const p = $('#sub');
+    p.textContent = res.error;
+    p.classList.add('err');
+  }
+}
+function skip(){ if(done) return; done = true; window.popup.closePopup(); }
+function activate(){ sel === 0 ? launch() : skip(); }
+
+yes.addEventListener('mouseenter', () => setSel(0));
+no.addEventListener('mouseenter',  () => setSel(1));
+yes.addEventListener('click', launch);
+no.addEventListener('click', skip);
+
+window.addEventListener('keydown', e => {
+  switch (e.key){
+    case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown':
+      e.preventDefault(); setSel(sel === 0 ? 1 : 0); break;
+    case 'Enter': case 'a': case 'A': activate(); break;
+    case 'Escape': case 'b': case 'B': skip(); break;
+  }
+});
+
+/* ── countdown + controller-only timer reset ─────────────────── */
+let left = 15;
+setInterval(() => { left = Math.max(0, left - 1); $('#secs').textContent = left + 'S'; }, 1000);
+
+function bumpTimer(){
+  left = 15;
+  $('#secs').textContent = '15S';
+  const bar = $('#bar');
+  bar.style.animation = 'none';
+  void bar.offsetWidth;
+  bar.style.animation = '';
+  if (window.popup && window.popup.resetTimer) window.popup.resetTimer();
+}
+
+/* ── hints (xbox / ps aware) ──────────────────────────────────── */
+let padOn = null, padType = 'xbox';
+function detectType(id){
+  const s = (id || '').toLowerCase();
+  return /dualsense|dualshock|playstation|ps4|ps5|054c/.test(s) ? 'ps' : 'xbox';
+}
+function renderHints(on){
+  let h;
+  if (!on) h = [['Enter','Launch'], ['Esc','Skip'], ['← →','Switch']];
+  else if (padType === 'ps') h = [['✕','Launch'], ['○','Skip'], ['D-PAD','Switch']];
+  else h = [['A','Launch'], ['B','Skip'], ['D-PAD','Switch']];
+  $('#hints').innerHTML = h.map(([k,t]) => `<div class="chip"><span class="key">${k}</span>${t}</div>`).join('');
+}
+renderHints(false);
+
+/* ── gamepad ──────────────────────────────────────────────────── */
+const held = {};
+let prev = [];
+function padFire(i, repeat){
+  switch (i){
+    case 0:  activate(); break;
+    case 1:  skip(); break;
+    case 14: case 15:
+      if (!repeat) setSel(sel === 0 ? 1 : 0); break;
+  }
+}
+function loop(){
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let pad = null;
+  for (const p of pads){ if (p && p.connected && p.buttons.length > 4){ pad = p; break; } }
+  const now = performance.now();
+  if (pad){
+    const t = detectType(pad.id);
+    if (t !== padType){ padType = t; if (padOn) renderHints(true); }
+    const pressed = pad.buttons.map(b => b.pressed);
+    for (let i = 0; i < pressed.length; i++){
+      if (pressed[i]){
+        if (!prev[i]){ padFire(i, false); bumpTimer(); held[i] = { next: now + 400 }; }
+        else if (held[i] && now >= held[i].next){ padFire(i, true); bumpTimer(); held[i].next = now + 160; }
+      } else held[i] = null;
+    }
+    const ax = pad.axes[0] || 0;
+    if (ax > 0.6 || ax < -0.6){
+      if (!held.stick){ held.stick = { next: now + 400 }; setSel(sel === 0 ? 1 : 0); bumpTimer(); }
+      else if (now >= held.stick.next){ held.stick.next = now + 160; setSel(sel === 0 ? 1 : 0); bumpTimer(); }
+    } else held.stick = null;
+    prev = pressed;
+    if (padOn !== true){ padOn = true; renderHints(true); }
+  } else {
+    prev = [];
+    if (padOn !== false){ padOn = false; renderHints(false); }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
